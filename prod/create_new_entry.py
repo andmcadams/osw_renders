@@ -17,7 +17,7 @@ pks = [
 ]
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--infile', help='')
+parser.add_argument('--infile', help='Path to a file to use for input')
 parser.add_argument('--item-id', help='Item id (numeric)', type=int, metavar='ITEM_ID')
 parser.add_argument('--equip-slot', help='Equip slot (numeric)', type=int, metavar='EQUIP_SLOT', choices=range(12))
 parser.add_argument('--outfile', default='outfile.csv', help='The file to write to (will overwrite)')

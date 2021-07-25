@@ -1,3 +1,4 @@
+import copy
 import json
 import random
 from inspect import signature
@@ -147,6 +148,17 @@ class EquippedRender:
 
     def has_zan2d(self) -> bool:
         return self.__zan2d != -1
+
+    def get_complete_playerkit(self):
+        # Get base playerkit
+        playerkit = copy.deepcopy(self.playerkit)
+        # Replace equipslot with the item
+        playerkit[self.equip_slot] = self.item_id + 512
+        # Hide all needed slots from zbm
+        for i, val in enumerate(self.zero_bitmap):
+            if val == 0:
+                playerkit[i] = 0
+        return playerkit
 
     def to_tsv(self) -> str:
         # Tiny helper to print None as ''
