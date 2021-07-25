@@ -12,7 +12,6 @@ import string
 from typing import Optional
 
 import requests
-from tqdm import tqdm
 
 from equipped_render import EquippedRender
 
@@ -23,9 +22,9 @@ COMMA = ','
 MAX_THREADS = 5
 
 
-def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str) -> bool:
+def validate_args(infile: str, cache: str, outdir: str, idfile: str) -> bool:
     # Validate infile
-    infile_path = Path(infile_arg)
+    infile_path = Path(infile)
     if not infile_path.is_file():
         print('Infile given does not exist!')
         return False
@@ -33,14 +32,20 @@ def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str) -> bool:
         print('Infile must be a .csv file!')
         return False
     # Validate cache
-    cache_path = Path(cache_arg)
+    cache_path = Path(cache)
     if not cache_path.is_dir():
         print('Cache given is not a dir!')
         return False
     # Validate outdir
-    if not isinstance(outdir_arg, str):
+    if not isinstance(outdir, str):
         print('Outdir given is not a string!')
         return False
+    # Validate idfile
+    if idfile:
+        idfile_path = Path(idfile)
+        if not idfile_path.is_file():
+            print('Idfile given does not exist!')
+            return False
 
     return True
 
@@ -65,7 +70,7 @@ def download_image(file_name: str, outdir: str) -> Optional[str]:
         return None
 
 
-def check_images(images_queue: Queue, cache: str, renders_outdir: str, wiki_path: str):
+def check_images(images_queue: Queue, cache: str, renders_outdir: str, wiki_path: str, force_rerender: bool):
     while not images_queue.empty():
         render: EquippedRender = images_queue.get()
         # Get the file from the wiki, if it exists
@@ -79,7 +84,7 @@ def check_images(images_queue: Queue, cache: str, renders_outdir: str, wiki_path
                 f'{render.get_complete_playerkit()}_{render.colorkit}.png')
             # Check if we have the image already generated. If not, generate it
             if downloaded_name:
-                if not render_file_name.is_file():
+                if not render_file_name.is_file() or force_rerender:
                     print(f'Rendering a file for {render.page_name}')
                     playerkit = [str(k) for k in render.get_complete_playerkit()]
                     colorkit = [str(k) for k in render.colorkit]
@@ -99,19 +104,31 @@ def check_images(images_queue: Queue, cache: str, renders_outdir: str, wiki_path
         images_queue.task_done()
 
 
-def run_jobs(infile: str, cache_arg: str, outdir_arg: str):
-    num_lines_data = sum(1 for _ in open(infile, 'r'))
+def run_jobs(infile: str, cache_arg: str, outdir_arg: str, idfile_arg: str, force_rerender: bool):
+    should_use_whitelist = False
+    id_whitelist = set()
+    if idfile_arg:
+        should_use_whitelist = True
+        with open(idfile_arg, 'r') as idfile:
+            for line in idfile:
+                id_whitelist.add(int(line))
+
     f = open(infile, 'r')
     jobs = Queue()
-    for line in tqdm(f, total=num_lines_data):
+    for line in f:
         render = EquippedRender.from_tsv(line)
-        jobs.put(render)
+        # If we are using the whitelist and the item id is in there, render it
+        # If not using the whitelist, render all equipped images
+        if should_use_whitelist and render.item_id in id_whitelist:
+            jobs.put(render)
+        elif not should_use_whitelist:
+            jobs.put(render)
 
     wiki_path = Path(f'{str(Path(outdir_arg))}_wiki')
     if not wiki_path.exists():
         os.mkdir(wiki_path)
     for i in range(MAX_THREADS):
-        t = threading.Thread(target=check_images, args=(jobs, cache_arg, outdir_arg, wiki_path))
+        t = threading.Thread(target=check_images, args=(jobs, cache_arg, outdir_arg, wiki_path, force_rerender))
         t.start()
     jobs.join()
     print('DIFF FILES:')
@@ -124,22 +141,26 @@ def run_jobs(infile: str, cache_arg: str, outdir_arg: str):
     for render in failed_to_generate_files:
         print(f'{render.item_id}: {render.file_name}')
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--infile', required=True, help='Path to a csv to use to generate renders')
     parser.add_argument('--cache', required=True, help='Path to the cache to use')
     parser.add_argument('--outdir', help='Folder to use for the renderer output')
     parser.add_argument('--idfile', help='File containing ids to check')
+    parser.add_argument('--rerender', action='store_true', help='Force rerender images')
     args = parser.parse_args()
 
     infile = args.infile
     cache = args.cache
     outdir = args.outdir if args.outdir else 'renders'
+    idfile = args.idfile
+    force_rerender = args.rerender
 
-    if not validate_args(infile, cache, outdir):
+    if not validate_args(infile, cache, outdir, idfile):
         exit(1)
 
-    run_jobs(infile, cache, outdir)
+    run_jobs(infile, cache, outdir, idfile, force_rerender)
 
 
 if __name__ == '__main__':
