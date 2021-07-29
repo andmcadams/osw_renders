@@ -1,6 +1,7 @@
 import copy
 import json
 import random
+from dataclasses import dataclass
 from inspect import signature
 from typing import List, Optional
 
@@ -22,143 +23,92 @@ def get_random_kits() -> List[List[int]]:
     return random.choice(possible_playerkits)
 
 
+class IncompleteDataException(BaseException):
+    pass
+
+
+@dataclass
 class EquippedRender:
 
-    def __init__(self, item_id: int, is_female: Optional[bool], page_name: str, infobox_version: str, file_name: str,
-                 playerkit: List[int], colorkit: List[int], zero_bitmap: Optional[List[int]], equip_slot: int,
-                 pose_anim: Optional[int], xan2d: Optional[int], yan2d: Optional[int], zan2d: Optional[int]):
-        self.__item_id = item_id
-        self.__is_female = is_female
-        self.__page_name = page_name.strip()
-        self.__infobox_version = infobox_version.strip()
-        self.__file_name = file_name.strip()
-        self.__playerkit = playerkit
-        self.__colorkit = colorkit
-        self.__zero_bitmap = zero_bitmap
-        self.__equip_slot = equip_slot
-        self.__pose_anim = pose_anim
-        self.__xan2d = xan2d
-        self.__yan2d = yan2d
-        self.__zan2d = zan2d
+    # Fields about the item
+    item_id: int
+    page_name: str
+    infobox_version: str
 
-    @property
-    def item_id(self) -> int:
-        return self.__item_id
+    # Male specific fields
+    male_file_name: str = None
+    male_playerkit: List[int] = None
+    male_colorkit: List[int] = None
 
-    @property
-    def page_name(self) -> str:
-        return self.__page_name
+    # Female specific fields
+    female_file_name: str = None
+    female_playerkit: List[int] = None
+    female_colorkit: List[int] = None
 
-    @page_name.setter
-    def page_name(self, page_name: str):
-        self.__page_name = page_name.strip()
+    # Fields for generating images
+    zero_bitmap: List[int] = None
+    equip_slot: int = -1
+    pose_anim: int = -1
+    xan2d: int = -1
+    yan2d: int = -1
+    zan2d: int = -1
 
-    @property
-    def is_female(self) -> bool:
-        return self.__is_female
+    def file_name(self, is_female: bool) -> str:
+        if is_female:
+            return self.female_file_name
+        return self.male_file_name
 
-    @property
-    def infobox_version(self) -> str:
-        return self.__infobox_version
+    def playerkit(self, is_female: bool) -> List[int]:
+        if is_female:
+            return self.female_playerkit
+        return self.male_playerkit
 
-    @infobox_version.setter
-    def infobox_version(self, infobox_version: str):
-        self.__infobox_version = infobox_version
+    def colorkit(self, is_female: bool) -> List[int]:
+        if is_female:
+            return self.female_colorkit
+        return self.male_playerkit
 
-    @property
-    def file_name(self) -> str:
-        return self.__file_name
+    def has_zero_bitmap(self) -> bool:
+        return self.zero_bitmap is None
 
-    @file_name.setter
-    def file_name(self, file_name: str):
-        self.__file_name = file_name
-
-    @property
-    def playerkit(self) -> List[int]:
-        return self.__playerkit
-
-    @playerkit.setter
-    def playerkit(self, playerkit: List[int]):
-        self.__playerkit = playerkit
-
-    @property
-    def colorkit(self) -> List[int]:
-        return self.__colorkit
-
-    @colorkit.setter
-    def colorkit(self, colorkit: List[int]):
-        self.__colorkit = colorkit
-
-    @property
-    def zero_bitmap(self) -> List[int]:
-        return self.__zero_bitmap
-
-    @zero_bitmap.setter
-    def zero_bitmap(self, zero_bitmap: List[int]):
-        self.__zero_bitmap = zero_bitmap
-
-    @property
-    def equip_slot(self) -> int:
-        return self.__equip_slot
-
-    @equip_slot.setter
-    def equip_slot(self, equip_slot: int):
-        self.__equip_slot = equip_slot
-
-    @property
-    def pose_anim(self) -> int:
-        return self.__pose_anim
-
-    @pose_anim.setter
-    def pose_anim(self, pose_anim: int):
-        self.__pose_anim = pose_anim
+    def has_equip_slot(self) -> bool:
+        return self.equip_slot != -1
 
     def has_pose_anim(self) -> bool:
-        return self.__pose_anim != -1
-
-    @property
-    def xan2d(self) -> int:
-        return self.__xan2d
-
-    @xan2d.setter
-    def xan2d(self, xan2d: int):
-        self.__xan2d = xan2d
+        return self.pose_anim != -1
 
     def has_xan2d(self) -> bool:
-        return self.__xan2d != -1
-
-    @property
-    def yan2d(self) -> int:
-        return self.__yan2d
-
-    @yan2d.setter
-    def yan2d(self, yan2d: int):
-        self.__yan2d = yan2d
+        return self.xan2d != -1
 
     def has_yan2d(self) -> bool:
-        return self.__yan2d != -1
-
-    @property
-    def zan2d(self) -> int:
-        return self.__zan2d
-
-    @zan2d.setter
-    def zan2d(self, zan2d: int):
-        self.__zan2d = zan2d
+        return self.yan2d != -1
 
     def has_zan2d(self) -> bool:
-        return self.__zan2d != -1
+        return self.zan2d != -1
 
-    def get_complete_playerkit(self):
-        # Get base playerkit
-        playerkit = copy.deepcopy(self.playerkit)
+    def get_complete_playerkit(self, is_female: bool) -> Optional[List[int]]:
+        # Determine which playerkit we want
+        playerkit = self.playerkit(is_female)
+
+        # If we are missing any crucial pieces throw an error
+        if not (playerkit and self.equip_slot != -1 and self.zero_bitmap):
+            raise IncompleteDataException()
+
+        # Copy the base playerkit
+        playerkit_copy = copy.deepcopy(playerkit)
+
         # Replace equipslot with the item
-        playerkit[self.equip_slot] = self.item_id + 512
+        playerkit_copy[self.equip_slot] = self.item_id + 512
+
         # Hide all needed slots from zbm
         for i, val in enumerate(self.zero_bitmap):
             if val == 0:
-                playerkit[i] = 0
-        return playerkit
+                playerkit_copy[i] = 0
+
+        return playerkit_copy
+
+    def can_render(self) -> bool:
+        return True
 
     def to_tsv(self) -> str:
         # Tiny helper to print None as ''
@@ -167,9 +117,10 @@ class EquippedRender:
                 return ''
             return str(prop)
 
-        return (f'{self.item_id}\t{self.is_female}\t{s(self.page_name)}\t{s(self.infobox_version)}\t'
-                f'{s(self.file_name)}\t{s(self.playerkit)}\t{s(self.colorkit)}\t{s(self.zero_bitmap)}\t'
-                f'{s(self.equip_slot)}\t{s(self.pose_anim)}\t{s(self.xan2d)}\t{s(self.yan2d)}\t{s(self.zan2d)}')
+        return (f'{self.item_id}\t{s(self.page_name)}\t{s(self.infobox_version)}\t{s(self.male_file_name)}\t'
+                f'{s(self.female_file_name)}\t{s(self.male_playerkit)}\t{s(self.female_playerkit)}\t{s(self.colorkit)}\t'
+                f'{s(self.zero_bitmap)}\t{s(self.equip_slot)}\t{s(self.pose_anim)}\t{s(self.xan2d)}\t{s(self.yan2d)}\t'
+                f'{s(self.zan2d)}')
 
     @classmethod
     def from_tsv(cls, tsv_line: str) -> 'EquippedRender':
@@ -178,6 +129,7 @@ class EquippedRender:
         # Remove self from count of parameters required
         num_required_params = len(signature(EquippedRender.__init__).parameters) - 1
         if len(values) != num_required_params:
+            print(values)
             raise ValueError(f'Given {len(values)} params, {num_required_params} expected')
 
         # item_id
