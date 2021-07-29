@@ -36,12 +36,12 @@ class EquippedRender:
     infobox_version: str
 
     # Male specific fields
-    male_file_name: str = None
+    male_file_name: Optional[str] = None
     male_playerkit: Optional[List[int]] = None
     male_colorkit: Optional[List[int]] = None
 
     # Female specific fields
-    female_file_name: str = None
+    female_file_name: Optional[str] = None
     female_playerkit: Optional[List[int]] = None
     female_colorkit: Optional[List[int]] = None
 
