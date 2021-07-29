@@ -3,23 +3,23 @@ import json
 import random
 from dataclasses import dataclass
 from inspect import signature
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 possible_playerkits = [
-    [[0, 0, 0, 0, 312, 0, 320, 326, 382, 324, 336, 0], [5, 19, 9, 1, 2]],
-    [[0, 0, 0, 0, 312, 0, 351, 326, 310, 324, 336, 0], [1, 22, 24, 1, 4]],
-    [[0, 0, 0, 0, 312, 0, 317, 326, 380, 324, 336, 0], [3, 23, 8, 5, 6]],
-    [[0, 0, 0, 0, 312, 0, 320, 326, 382, 324, 336, 0], [0, 11, 8, 5, 0]],
-    [[0, 0, 0, 0, 312, 0, 355, 326, 304, 324, 336, 0], [12, 6, 4, 5, 1]],
-    [[0, 0, 0, 0, 315, 0, 317, 326, 377, 324, 336, 0], [7, 25, 20, 4, 1]],
-    [[0, 0, 0, 0, 315, 0, 317, 326, 380, 324, 336, 0], [7, 0, 2, 3, 7]],
-    [[0, 0, 0, 0, 315, 0, 351, 326, 376, 324, 336, 0], [3, 13, 6, 3, 5]],
-    [[0, 0, 0, 0, 312, 0, 317, 326, 379, 324, 336, 0], [0, 26, 2, 2, 3]],
-    [[0, 0, 0, 0, 315, 0, 352, 326, 375, 324, 336, 0], [14, 22, 6, 1, 2]]
+    ([0, 0, 0, 0, 312, 0, 320, 326, 382, 324, 336, 0], [5, 19, 9, 1, 2]),
+    ([0, 0, 0, 0, 312, 0, 351, 326, 310, 324, 336, 0], [1, 22, 24, 1, 4]),
+    ([0, 0, 0, 0, 312, 0, 317, 326, 380, 324, 336, 0], [3, 23, 8, 5, 6]),
+    ([0, 0, 0, 0, 312, 0, 320, 326, 382, 324, 336, 0], [0, 11, 8, 5, 0]),
+    ([0, 0, 0, 0, 312, 0, 355, 326, 304, 324, 336, 0], [12, 6, 4, 5, 1]),
+    ([0, 0, 0, 0, 315, 0, 317, 326, 377, 324, 336, 0], [7, 25, 20, 4, 1]),
+    ([0, 0, 0, 0, 315, 0, 317, 326, 380, 324, 336, 0], [7, 0, 2, 3, 7]),
+    ([0, 0, 0, 0, 315, 0, 351, 326, 376, 324, 336, 0], [3, 13, 6, 3, 5]),
+    ([0, 0, 0, 0, 312, 0, 317, 326, 379, 324, 336, 0], [0, 26, 2, 2, 3]),
+    ([0, 0, 0, 0, 315, 0, 352, 326, 375, 324, 336, 0], [14, 22, 6, 1, 2])
 ]
 
 
-def get_random_kits() -> List[List[int]]:
+def get_random_kits() -> Tuple[List[int], List[int]]:
     return random.choice(possible_playerkits)
 
 
@@ -37,33 +37,33 @@ class EquippedRender:
 
     # Male specific fields
     male_file_name: str = None
-    male_playerkit: List[int] = None
-    male_colorkit: List[int] = None
+    male_playerkit: Optional[List[int]] = None
+    male_colorkit: Optional[List[int]] = None
 
     # Female specific fields
     female_file_name: str = None
-    female_playerkit: List[int] = None
-    female_colorkit: List[int] = None
+    female_playerkit: Optional[List[int]] = None
+    female_colorkit: Optional[List[int]] = None
 
     # Fields for generating images
-    zero_bitmap: List[int] = None
+    zero_bitmap: Optional[List[int]] = None
     equip_slot: int = -1
     pose_anim: int = -1
     xan2d: int = -1
     yan2d: int = -1
     zan2d: int = -1
 
-    def file_name(self, is_female: bool) -> str:
+    def get_file_name(self, is_female: bool) -> str:
         if is_female:
             return self.female_file_name
         return self.male_file_name
 
-    def playerkit(self, is_female: bool) -> List[int]:
+    def get_playerkit(self, is_female: bool) -> List[int]:
         if is_female:
             return self.female_playerkit
         return self.male_playerkit
 
-    def colorkit(self, is_female: bool) -> List[int]:
+    def get_colorkit(self, is_female: bool) -> List[int]:
         if is_female:
             return self.female_colorkit
         return self.male_playerkit
