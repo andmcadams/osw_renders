@@ -3,7 +3,7 @@ import json
 import random
 from dataclasses import dataclass
 from inspect import signature
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 possible_playerkits = [
     ([0, 0, 0, 0, 312, 0, 320, 326, 382, 324, 336, 0], [5, 19, 9, 1, 2]),
@@ -36,12 +36,12 @@ class EquippedRender:
     infobox_version: str
 
     # Male specific fields
-    male_file_name: Optional[str] = None
+    male_file_name: Optional[str] = ''
     male_playerkit: Optional[List[int]] = None
     male_colorkit: Optional[List[int]] = None
 
     # Female specific fields
-    female_file_name: Optional[str] = None
+    female_file_name: Optional[str] = ''
     female_playerkit: Optional[List[int]] = None
     female_colorkit: Optional[List[int]] = None
 
@@ -88,16 +88,16 @@ class EquippedRender:
 
     def get_complete_playerkit(self, is_female: bool) -> Optional[List[int]]:
         # Determine which playerkit we want
-        playerkit = self.playerkit(is_female)
+        playerkit = self.get_playerkit(is_female)
 
         # If we are missing any crucial pieces throw an error
-        if not (playerkit and self.equip_slot != -1 and self.zero_bitmap):
+        if not (playerkit and self.has_equip_slot() and self.has_zero_bitmap()):
             raise IncompleteDataException()
 
         # Copy the base playerkit
         playerkit_copy = copy.deepcopy(playerkit)
 
-        # Replace equipslot with the item
+        # Replace equip slot with the item
         playerkit_copy[self.equip_slot] = self.item_id + 512
 
         # Hide all needed slots from zbm
@@ -117,42 +117,30 @@ class EquippedRender:
                 return ''
             return str(prop)
 
-        return (f'{self.item_id}\t{s(self.page_name)}\t{s(self.infobox_version)}\t{s(self.male_file_name)}\t'
-                f'{s(self.female_file_name)}\t{s(self.male_playerkit)}\t{s(self.female_playerkit)}\t{s(self.colorkit)}\t'
-                f'{s(self.zero_bitmap)}\t{s(self.equip_slot)}\t{s(self.pose_anim)}\t{s(self.xan2d)}\t{s(self.yan2d)}\t'
-                f'{s(self.zan2d)}')
+        return (f'{self.item_id}\t{self.page_name}\t{self.infobox_version}\t'
+                f'{s(self.male_file_name)}\t{s(self.male_playerkit)}\t{s(self.male_colorkit)}\t'
+                f'{s(self.female_file_name)}\t{s(self.female_playerkit)}\t{s(self.female_colorkit)}\t'
+                f'{s(self.zero_bitmap)}\t{self.equip_slot}\t{self.pose_anim}\t'
+                f'{self.xan2d}\t{self.yan2d}\t{self.zan2d}')
 
     @classmethod
-    def from_tsv(cls, tsv_line: str) -> 'EquippedRender':
-        values = tsv_line.split('\t')
-
-        # Remove self from count of parameters required
-        num_required_params = len(signature(EquippedRender.__init__).parameters) - 1
-        if len(values) != num_required_params:
-            print(values)
-            raise ValueError(f'Given {len(values)} params, {num_required_params} expected')
-
+    def from_dict(cls, data: Dict[str, Any]) -> 'EquippedRender':
         # item_id
-        values[0] = int(values[0])
-        # is_female
-        values[1] = values[1].lower() == 'true'
+        data['item_id'] = int(data['item_id'])
+        # page name, infobox version
+        # Male specific fields
+        data['male_playerkit'] = json.loads(data['male_playerkit']) if data['male_playerkit'] else None
+        data['male_colorkit'] = json.loads(data['male_colorkit']) if data['male_colorkit'] else None
+        # Female specific fields
+        data['female_playerkit'] = json.loads(data['female_playerkit']) if data['female_playerkit'] else None
+        data['female_colorkit'] = json.loads(data['female_colorkit']) if data['female_colorkit'] else None
+        # Fields for generating images
+        data['zero_bitmap'] = json.loads(data['zero_bitmap']) if data['zero_bitmap'] else None
 
-        if values[5]:
-            values[5] = json.loads(values[5])
-        else:
-            values[5] = None
-        if values[6]:
-            values[6] = json.loads(values[6])
-        else:
-            values[6] = None
-        if values[7]:
-            values[7] = json.loads(values[7])
-        else:
-            values[7] = None
-        values[8] = int(values[8]) if values[8] else -1
-        values[9] = int(values[9]) if values[9] else -1
-        values[10] = int(values[10]) if values[10] else 96
-        values[11] = int(values[11]) if values[11] else -1
-        values[12] = int(values[12]) if values[12] else 0
+        data['equip_slot'] = int(data['equip_slot']) if data['equip_slot'] else -1
+        data['pose_anim'] = int(data['pose_anim']) if data['pose_anim'] else -1
+        data['equip_slot'] = int(data['xan2d']) if data['xan2d'] else -1
+        data['equip_slot'] = int(data['yan2d']) if data['yan2d'] else -1
+        data['equip_slot'] = int(data['zan2d']) if data['zan2d'] else -1
 
-        return cls(*values)
+        return cls(**data)
