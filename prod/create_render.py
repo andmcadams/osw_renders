@@ -47,17 +47,17 @@ def render_image(render: EquippedRender, is_female: bool, cache: str, outdir: st
     )
 
 
-def render_images(images_queue: Queue, cache: str, outdir: str):
+def render_images(images_queue: Queue, cache: str, outdir: str, only: str):
     while not images_queue.empty():
         render: EquippedRender = images_queue.get()
-        if render.can_render(is_female=False):
+        if render.can_render(is_female=False) and only != 'female':
             render_image(render=render, is_female=False, cache=cache, outdir=outdir)
-        if render.can_render(is_female=True):
+        if render.can_render(is_female=True) and only != 'male':
             render_image(render=render, is_female=True, cache=cache, outdir=outdir)
         images_queue.task_done()
 
 
-def run_jobs(infile: str, cache_arg: str, outdir_arg: str):
+def run_jobs(infile: str, cache_arg: str, outdir_arg: str, only: str):
     num_lines_data = sum(1 for _ in open(infile, 'r'))
     f = open(infile, 'r')
     dict_reader = csv.DictReader(f, dialect='excel')
@@ -68,7 +68,7 @@ def run_jobs(infile: str, cache_arg: str, outdir_arg: str):
         jobs.put(render)
 
     for i in range(MAX_THREADS):
-        t = threading.Thread(target=render_images, args=(jobs, cache_arg, outdir_arg))
+        t = threading.Thread(target=render_images, args=(jobs, cache_arg, outdir_arg, only))
         t.start()
     jobs.join()
 
@@ -78,16 +78,18 @@ def main():
     parser.add_argument('--infile', required=True, help='Path to a csv to use to generate renders')
     parser.add_argument('--cache', required=True, help='Path to the cache to use')
     parser.add_argument('--outdir', help='Folder to use for the renderer output')
+    parser.add_argument('--only', choices=['male', 'female'], help='Only generate renders for the given gender')
     args = parser.parse_args()
 
     infile = args.infile
     cache = args.cache
     outdir = args.outdir if args.outdir else 'renders'
+    only = args.only
 
     if not validate_args(infile, cache, outdir):
         exit(1)
 
-    run_jobs(infile, cache, outdir)
+    run_jobs(infile, cache, outdir, only)
 
 
 if __name__ == '__main__':
