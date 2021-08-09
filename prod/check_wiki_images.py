@@ -1,4 +1,5 @@
 # Check images to see which ones need to be updated
+import csv
 import os
 import threading
 from pathlib import Path
@@ -70,36 +71,45 @@ def download_image(file_name: str, outdir: str) -> Optional[str]:
         return None
 
 
+def check_image(render: EquippedRender, is_female: bool, cache: str, renders_outdir: str, wiki_path: str,
+                force_rerender: bool):
+    download_path = Path(wiki_path).joinpath(render.get_file_name(is_female)[7:-2])
+    if not download_path.exists():
+        downloaded_name = download_image(render.get_file_name(is_female)[7:-2], wiki_path)
+    else:
+        downloaded_name = str(download_path)
+    render_file_name = Path(renders_outdir).joinpath('female' if is_female else 'male').joinpath('player').joinpath(
+        f'{render.get_complete_playerkit(is_female)}_{render.get_colorkit(is_female)}.png')
+    # Check if we have the image already generated. If not, generate it
+    if downloaded_name:
+        if not render_file_name.is_file() or force_rerender:
+            print(f'Rendering a file for {render.page_name}')
+            playerkit = [str(k) for k in render.get_complete_playerkit(is_female)]
+            colorkit = [str(k) for k in render.get_colorkit(is_female)]
+            complete_outdir = Path(renders_outdir).joinpath('female' if is_female else 'male')
+            os.system(
+                f'java -jar renderer-all.jar --cache {cache} --out {complete_outdir} '
+                f'{"--playerfemale" if is_female else ""} '
+                f'--playerkit "{COMMA.join(playerkit)}" --playercolors "{COMMA.join(colorkit)}" '
+                f'--poseanim {render.pose_anim} --xan2d {render.xan2d} --yan2d {render.yan2d} --zan2d {render.zan2d}')
+        # Compare the two files
+        if render_file_name.is_file():
+            is_same_image = filecmp.cmp(render_file_name, downloaded_name, shallow=False)
+            if not is_same_image:
+                diff_files.add(render)
+        else:
+            failed_to_generate_files.add(render)
+    else:
+        non_uploaded_files.add(render)
+
+
 def check_images(images_queue: Queue, cache: str, renders_outdir: str, wiki_path: str, force_rerender: bool):
     while not images_queue.empty():
         render: EquippedRender = images_queue.get()
         # Get the file from the wiki, if it exists
-        download_path = Path(wiki_path).joinpath(render.file_name[7:-2])
-        if render.file_name and render.playerkit and render.colorkit and render.pose_anim != -1 and render.yan2d != -1 and render.zero_bitmap:
-            if not download_path.exists():
-                downloaded_name = download_image(render.file_name[7:-2], wiki_path)
-            else:
-                downloaded_name = str(download_path)
-            render_file_name = Path(renders_outdir).joinpath('player').joinpath(
-                f'{render.get_complete_playerkit()}_{render.colorkit}.png')
-            # Check if we have the image already generated. If not, generate it
-            if downloaded_name:
-                if not render_file_name.is_file() or force_rerender:
-                    print(f'Rendering a file for {render.page_name}')
-                    playerkit = [str(k) for k in render.get_complete_playerkit()]
-                    colorkit = [str(k) for k in render.colorkit]
-                    os.system(
-                        f'java -jar renderer-all.jar --cache {cache} --out {renders_outdir} --playerkit "{COMMA.join(playerkit)}" '
-                        f'--poseanim {render.pose_anim} --xan2d {render.xan2d} --yan2d {render.yan2d} --zan2d {render.zan2d} --playerfemale --playercolors "{COMMA.join(colorkit)}"')
-                # Compare the two files
-                if render_file_name.is_file():
-                    is_same_image = filecmp.cmp(render_file_name, downloaded_name, shallow=False)
-                    if not is_same_image:
-                        diff_files.add(render)
-                else:
-                    failed_to_generate_files.add(render)
-            else:
-                non_uploaded_files.add(render)
+        if render.can_render(is_female=False):
+            check_image(render=render, is_female=False, cache=cache, renders_outdir=renders_outdir, wiki_path=wiki_path,
+                        force_rerender=force_rerender)
 
         images_queue.task_done()
 
@@ -114,9 +124,10 @@ def run_jobs(infile: str, cache_arg: str, outdir_arg: str, idfile_arg: str, forc
                 id_whitelist.add(int(line))
 
     f = open(infile, 'r')
+    dict_reader = csv.DictReader(f, dialect='excel')
     jobs = Queue()
-    for line in f:
-        render = EquippedRender.from_tsv(line)
+    for line in dict_reader:
+        render = EquippedRender.from_dict(line)
         # If we are using the whitelist and the item id is in there, render it
         # If not using the whitelist, render all equipped images
         if should_use_whitelist and render.item_id in id_whitelist:

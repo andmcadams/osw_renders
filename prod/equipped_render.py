@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from inspect import signature
 from typing import List, Optional, Tuple, Dict, Any
 
-possible_playerkits = [
+possible_female_playerkits = [
     ([0, 0, 0, 0, 312, 0, 320, 326, 382, 324, 336, 0], [5, 19, 9, 1, 2]),
     ([0, 0, 0, 0, 312, 0, 351, 326, 310, 324, 336, 0], [1, 22, 24, 1, 4]),
     ([0, 0, 0, 0, 312, 0, 317, 326, 380, 324, 336, 0], [3, 23, 8, 5, 6]),
@@ -19,9 +19,11 @@ possible_playerkits = [
 ]
 
 
-def get_random_kits() -> Tuple[List[int], List[int]]:
-    return random.choice(possible_playerkits)
+def get_random_kits(is_female: bool) -> Tuple[List[int], List[int]]:
+    if is_female:
+        return random.choice(possible_female_playerkits)
 
+    return None
 
 class IncompleteDataException(BaseException):
     pass
@@ -29,7 +31,6 @@ class IncompleteDataException(BaseException):
 
 @dataclass
 class EquippedRender:
-
     # Fields about the item
     item_id: int
     page_name: str
@@ -66,10 +67,10 @@ class EquippedRender:
     def get_colorkit(self, is_female: bool) -> List[int]:
         if is_female:
             return self.female_colorkit
-        return self.male_playerkit
+        return self.male_colorkit
 
     def has_zero_bitmap(self) -> bool:
-        return self.zero_bitmap is None
+        return bool(self.zero_bitmap)
 
     def has_equip_slot(self) -> bool:
         return self.equip_slot != -1
@@ -107,21 +108,27 @@ class EquippedRender:
 
         return playerkit_copy
 
-    def can_render(self) -> bool:
+    def can_render(self, is_female: bool) -> bool:
+        if not self.get_playerkit(is_female):
+            return False
+        if not self.get_colorkit(is_female):
+            return False
+        if not self.has_zero_bitmap():
+            return False
+        if not self.has_equip_slot():
+            return False
+        if not self.has_pose_anim():
+            return False
+        if not self.has_xan2d():
+            return False
+        if not self.has_yan2d():
+            return False
+        if not self.has_zan2d():
+            return False
         return True
 
-    def to_tsv(self) -> str:
-        # Tiny helper to print None as ''
-        def s(prop):
-            if prop is None:
-                return ''
-            return str(prop)
-
-        return (f'{self.item_id}\t{self.page_name}\t{self.infobox_version}\t'
-                f'{s(self.male_file_name)}\t{s(self.male_playerkit)}\t{s(self.male_colorkit)}\t'
-                f'{s(self.female_file_name)}\t{s(self.female_playerkit)}\t{s(self.female_colorkit)}\t'
-                f'{s(self.zero_bitmap)}\t{self.equip_slot}\t{self.pose_anim}\t'
-                f'{self.xan2d}\t{self.yan2d}\t{self.zan2d}')
+    def to_dict(self) -> Dict[str, Any]:
+        return self.__dict__
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'EquippedRender':
@@ -139,8 +146,12 @@ class EquippedRender:
 
         data['equip_slot'] = int(data['equip_slot']) if data['equip_slot'] else -1
         data['pose_anim'] = int(data['pose_anim']) if data['pose_anim'] else -1
-        data['equip_slot'] = int(data['xan2d']) if data['xan2d'] else -1
-        data['equip_slot'] = int(data['yan2d']) if data['yan2d'] else -1
-        data['equip_slot'] = int(data['zan2d']) if data['zan2d'] else -1
+        data['xan2d'] = int(data['xan2d']) if data['xan2d'] else -1
+        data['yan2d'] = int(data['yan2d']) if data['yan2d'] else -1
+        data['zan2d'] = int(data['zan2d']) if data['zan2d'] else -1
 
         return cls(**data)
+
+    @staticmethod
+    def get_csv_headers() -> List[str]:
+        return list(EquippedRender.__dict__['__dataclass_fields__'].keys())

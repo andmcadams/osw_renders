@@ -1,5 +1,7 @@
 import argparse
+import csv
 import random
+from csv import DictWriter
 
 from equipped_render import EquippedRender
 
@@ -17,7 +19,7 @@ pks = [
 ]
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--infile', help='Path to a file to use for input')
+parser.add_argument('--infile', help='Path to a tsv file to use for input')
 parser.add_argument('--item-id', help='Item id (numeric)', type=int, metavar='ITEM_ID')
 parser.add_argument('--equip-slot', help='Equip slot (numeric)', type=int, metavar='EQUIP_SLOT', choices=range(12))
 parser.add_argument('--outfile', default='outfile.csv', help='The file to write to (will overwrite)')
@@ -28,20 +30,26 @@ if not args.infile and not(args.item_id and args.equip_slot):
     exit(1)
 
 outfile = open(args.outfile, 'w+')
+dict_writer = DictWriter(outfile, fieldnames=EquippedRender.get_csv_headers(), dialect='excel')
+dict_writer.writeheader()
 if args.infile:
     print(f'Using infile at {args.infile}')
     infile = open(args.infile, 'r')
     for line in infile:
+        line = line.strip()
         item_id, equip_slot = line.split('\t')
         playerkit, colorkit = random.choice(pks)
 
-        render = EquippedRender(item_id=int(item_id), is_female=None, page_name='', infobox_version='',
-                                file_name='', playerkit=playerkit, colorkit=colorkit, zero_bitmap=None,
-                                equip_slot=int(equip_slot), pose_anim=None, xan2d=None, yan2d=None, zan2d=None)
-        outfile.write(f'{render.to_tsv()}\n')
+        render = EquippedRender(item_id=int(item_id), page_name='', infobox_version='',
+                                male_file_name='', male_playerkit=playerkit, male_colorkit=colorkit,
+                                female_file_name='', female_playerkit=playerkit, female_colorkit=colorkit,
+                                equip_slot=int(equip_slot))
+        dict_writer.writerow(render.to_dict())
 else:
     playerkit, colorkit = random.choice(pks)
-    render = EquippedRender(item_id=int(args.item_id), is_female=None, page_name='', infobox_version='',
-                            file_name='', playerkit=playerkit, colorkit=colorkit, zero_bitmap=None,
-                            equip_slot=int(args.equip_slot), pose_anim=None, xan2d=None, yan2d=None, zan2d=None)
-    outfile.write(f'{render.to_tsv()}\n')
+    render = EquippedRender(item_id=int(args.item_id), page_name='', infobox_version='',
+                            male_file_name='', male_playerkit=playerkit, male_colorkit=colorkit,
+                            female_file_name='', female_playerkit=playerkit, female_colorkit=colorkit,
+                            equip_slot=int(args.equip_slot))
+    dict_writer.writerow(render.to_dict())
+outfile.close()
