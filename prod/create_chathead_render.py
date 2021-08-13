@@ -4,6 +4,7 @@ import os
 import threading
 from pathlib import Path
 from queue import Queue
+from typing import Optional, List
 
 from tqdm import tqdm
 
@@ -13,7 +14,7 @@ COMMA = ','
 MAX_THREADS = 5
 
 
-def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str) -> bool:
+def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str, only_ids_file: Optional[str]) -> bool:
     # Validate infile
     infile_path = Path(infile_arg)
     if not infile_path.is_file():
@@ -32,6 +33,18 @@ def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str) -> bool:
         print('Outdir given is not a string!')
         return False
 
+    # Validate ids file
+    if only_ids_file:
+        only_ids_file_path = Path(only_ids_file)
+        if not only_ids_file_path.is_file():
+            print('Only-ids file does not exist!')
+            return False
+        try:
+            _ = [int(item_id) for item_id in open(only_ids_file).read().split(',')]
+        except ValueError:
+            print('id-list file is not a comma separated list of integers!')
+            return False
+
     return True
 
 
@@ -46,17 +59,17 @@ def render_image(render: EquippedRender, is_female: bool, cache: str, outdir: st
     )
 
 
-def render_images(images_queue: Queue, cache: str, outdir: str, only: str):
+def render_images(images_queue: Queue, cache: str, outdir: str, only_gender: Optional[str]):
     while not images_queue.empty():
         render: EquippedRender = images_queue.get()
-        if render.can_render(is_female=False) and only != 'female' and render.equip_slot == 0:
+        if render.can_render(is_female=False) and only_gender != 'female' and render.equip_slot == 0:
             render_image(render=render, is_female=False, cache=cache, outdir=outdir)
-        if render.can_render(is_female=True) and only != 'male':
+        if render.can_render(is_female=True) and only_gender != 'male':
             render_image(render=render, is_female=True, cache=cache, outdir=outdir)
         images_queue.task_done()
 
 
-def run_jobs(infile: str, cache_arg: str, outdir_arg: str, only: str):
+def run_jobs(infile: str, cache_arg: str, outdir_arg: str, only_gender: Optional[str], only_ids: Optional[List[int]]):
     num_lines_data = sum(1 for _ in open(infile, 'r'))
     f = open(infile, 'r')
     dict_reader = csv.DictReader(f, dialect='excel')
@@ -64,10 +77,11 @@ def run_jobs(infile: str, cache_arg: str, outdir_arg: str, only: str):
     jobs = Queue()
     for line in tqdm(dict_reader, total=num_lines_data):
         render = EquippedRender.from_dict(line)
-        jobs.put(render)
+        if only_ids is None or render.item_id in only_ids:
+            jobs.put(render)
 
     for i in range(MAX_THREADS):
-        t = threading.Thread(target=render_images, args=(jobs, cache_arg, outdir_arg, only))
+        t = threading.Thread(target=render_images, args=(jobs, cache_arg, outdir_arg, only_gender))
         t.start()
     jobs.join()
 
@@ -77,18 +91,23 @@ def main():
     parser.add_argument('--infile', required=True, help='Path to a csv to use to generate renders')
     parser.add_argument('--cache', required=True, help='Path to the cache to use')
     parser.add_argument('--outdir', help='Folder to use for the renderer output')
-    parser.add_argument('--only', choices=['male', 'female'], help='Only generate renders for the given gender')
+    parser.add_argument('--only-gender', choices=['male', 'female'], help='Only generate renders for the given gender')
+    parser.add_argument('--id-list', help='Only generate renders for the ids in this file (comma separated list)')
     args = parser.parse_args()
 
     infile = args.infile
     cache = args.cache
     outdir = args.outdir if args.outdir else 'renders'
-    only = args.only
+    only_gender = args.only_gender
+    only_ids_file = args.id_list
 
-    if not validate_args(infile, cache, outdir):
+    if not validate_args(infile, cache, outdir, only_ids_file):
         exit(1)
 
-    run_jobs(infile, cache, outdir, only)
+    only_ids = None
+    if only_ids_file is not None:
+        only_ids = [int(item_id) for item_id in open(only_ids_file).read().split(',')]
+    run_jobs(infile, cache, outdir, only_gender, only_ids)
 
 
 if __name__ == '__main__':
