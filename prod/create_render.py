@@ -33,15 +33,16 @@ def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str, only_ids_fil
         print('Outdir given is not a string!')
         return False
 
+    # Validate ids file
     if only_ids_file:
         only_ids_file_path = Path(only_ids_file)
         if not only_ids_file_path.is_file():
             print('Only-ids file does not exist!')
             return False
         try:
-            only_ids = [int(item_id) for item_id in open(only_ids_file).read().split(',')]
-        except ValueError as e:
-            print('only-ids file is not a comma separated list of integers!')
+            _ = [int(item_id) for item_id in open(only_ids_file).read().split(',')]
+        except ValueError:
+            print('id-list file is not a comma separated list of integers!')
             return False
 
     return True
