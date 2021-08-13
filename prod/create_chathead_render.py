@@ -64,7 +64,7 @@ def render_images(images_queue: Queue, cache: str, outdir: str, only_gender: Opt
         render: EquippedRender = images_queue.get()
         if render.can_render(is_female=False) and only_gender != 'female' and render.equip_slot == 0:
             render_image(render=render, is_female=False, cache=cache, outdir=outdir)
-        if render.can_render(is_female=True) and only_gender != 'male':
+        if render.can_render(is_female=True) and only_gender != 'male' and render.equip_slot == 0:
             render_image(render=render, is_female=True, cache=cache, outdir=outdir)
         images_queue.task_done()
 
