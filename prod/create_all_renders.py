@@ -11,7 +11,7 @@ from tqdm import tqdm
 from equipped_render import EquippedRender
 
 COMMA = ','
-MAX_THREADS = 5
+MAX_THREADS = 1
 
 
 def validate_args(infile_arg: str, cache_arg: str, outdir_arg: str, only_ids_file: Optional[str]) -> bool:
@@ -110,7 +110,7 @@ def run_jobs(infile: str, cache_arg: str, outdir_arg: str, only_gender: Optional
         t.start()
     equip_jobs.join()
     for i in range(MAX_THREADS):
-        t = threading.Thread(target=render_chathead_images, args=(equip_jobs, cache_arg, outdir_arg, only_gender))
+        t = threading.Thread(target=render_chathead_images, args=(chathead_jobs, cache_arg, outdir_arg, only_gender))
         t.start()
     chathead_jobs.join()
 
@@ -120,7 +120,8 @@ def main():
     parser.add_argument('--infile', required=True, help='Path to a csv to use to generate renders')
     parser.add_argument('--cache', required=True, help='Path to the cache to use')
     parser.add_argument('--outdir', default='renders', help='Folder to use for the renderer output')
-    parser.add_argument('--only-gender', choices=['male', 'female'], help='Only generate renders for the given gender. Defaults to generating both.')
+    parser.add_argument('--only-gender', choices=['male', 'female'],
+                        help='Only generate renders for the given gender. Defaults to generating both.')
     parser.add_argument('--render-type', choices=['player', 'chathead'],
                         help='Only generate renders for the given type. Defaults to generating both.')
     parser.add_argument('--id-list', help='Only generate renders for the ids in this file (comma separated list)')
@@ -136,6 +137,11 @@ def main():
     if not validate_args(infile, cache, outdir, only_ids_file):
         exit(1)
 
+    start_up(infile, cache, outdir, only_gender, only_render, only_ids_file)
+
+
+def start_up(infile: str, cache: str, outdir: str, only_gender: Optional[str], only_render: Optional[str],
+             only_ids_file: Optional[str]):
     only_ids = None
     if only_ids_file is not None:
         only_ids = [int(item_id) for item_id in open(only_ids_file).read().split(',')]

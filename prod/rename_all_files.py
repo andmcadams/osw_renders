@@ -15,7 +15,7 @@ from equipped_render import EquippedRender, IncompleteDataException
 pages = defaultdict(set)
 
 
-def validate_args(infile: str, renders_dir: str, outdir: str, only_ids_file: str) -> bool:
+def validate_args(infile: str, renders_dir: str, only_ids_file: str, check_renders_dir: bool = True) -> bool:
     # Validate infile
     infile_path = Path(infile)
     if not infile_path.is_file():
@@ -24,10 +24,12 @@ def validate_args(infile: str, renders_dir: str, outdir: str, only_ids_file: str
     if infile_path.suffix != '.csv':
         print('Infile must be a .csv file!')
         return False
+
     # Validate renders dir
-    if not Path(renders_dir).is_dir():
-        print(f'Cannot find dir: {renders_dir}')
-        return False
+    if check_renders_dir:
+        if not Path(renders_dir).is_dir():
+            print(f'Cannot find dir: {renders_dir}')
+            return False
 
     # Validate ids file
     if only_ids_file:
@@ -126,9 +128,14 @@ def main():
     only_render = args.render_type
     only_ids_file = args.id_list
 
-    if not validate_args(infile, renders_dir, outdir, only_ids_file):
+    if not validate_args(infile, renders_dir, only_ids_file):
         exit(1)
 
+    start_up(infile, renders_dir, outdir, only_gender, only_render, only_ids_file)
+
+
+def start_up(infile: str, renders_dir: str, outdir: Optional[str], only_gender: Optional[str],
+             only_render: Optional[str], only_ids_file: Optional[str]):
     # If outdir is not given, create the dir for renamed
     if not outdir:
         outdir = f'{str(Path(renders_dir))}_renamed'
