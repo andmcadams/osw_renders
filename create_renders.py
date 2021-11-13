@@ -127,17 +127,10 @@ def main():
     parser.add_argument('--id-list', help='Only generate renders for the ids in this file (comma separated list)')
     args = parser.parse_args()
 
-    infile = args.infile
-    cache = args.cache
-    outdir = args.outdir
-    only_gender = args.only_gender
-    only_render = args.render_type
-    only_ids_file = args.id_list
-
-    if not validate_args(infile, cache, outdir, only_ids_file):
+    if not validate_args(args.infile, args.cache, args.outdir, args.only_ids_file):
         exit(1)
 
-    start_up(infile, cache, outdir, only_gender, only_render, only_ids_file)
+    start_up(args.infile, args.cache, args.outdir, args.only_gender, args.only_render, args.only_ids_file)
 
 
 def start_up(infile: str, cache: str, outdir: str, only_gender: Optional[str], only_render: Optional[str],
