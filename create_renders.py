@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from equipped_render import EquippedRender
 
+RENDERER_PATH = os.environ.get('RENDERER_PATH', './renderer-all.jar')
 COMMA = ','
 MAX_THREADS = 1
 
@@ -54,7 +55,7 @@ def render_chathead_images(images_queue: Queue, cache: str, outdir: str, only_ge
         colorkit = [str(k) for k in render_.get_colorkit(is_female)]
         complete_outdir = Path(outdir_).joinpath('female' if is_female else 'male')
         os.system(
-            f'java -jar renderer-all.jar --cache {cache_} --out {complete_outdir} '
+            f'java -jar {RENDERER_PATH} --cache {cache_} --out {complete_outdir} '
             f'--playerkit "{COMMA.join(playerkit)}" --playercolors "{COMMA.join(colorkit)}" '
             f'{"--playerfemale" if is_female else ""} --playerchathead --anim 589 --lowres --crophead'
         )
@@ -74,7 +75,7 @@ def render_equip_images(images_queue: Queue, cache: str, outdir: str, only_gende
         colorkit = [str(k) for k in render_.get_colorkit(is_female)]
         complete_outdir = Path(outdir_).joinpath('female' if is_female else 'male')
         os.system(
-            f'java -jar renderer-all.jar --cache {cache_} --out {complete_outdir} '
+            f'java -jar {RENDERER_PATH} --cache {cache_} --out {complete_outdir} '
             f'--playerkit "{COMMA.join(playerkit)}" --playercolors "{COMMA.join(colorkit)}" '
             f'--poseanim {render_.pose_anim} --xan2d {render_.xan2d} --yan2d {render_.yan2d} --zan2d {render_.zan2d} '
             f'{"--playerfemale" if is_female else ""}'

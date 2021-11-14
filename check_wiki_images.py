@@ -15,6 +15,7 @@ import requests
 
 from equipped_render import EquippedRender
 
+RENDERER_PATH = os.environ.get('RENDERER_PATH', './renderer-all.jar')
 diff_files = set()
 non_uploaded_files = set()
 failed_to_generate_files = set()
@@ -92,7 +93,7 @@ def check_image(render: EquippedRender, is_female: bool, cache: str, renders_out
             colorkit = [str(k) for k in render.get_colorkit(is_female)]
             complete_outdir = Path(renders_outdir).joinpath('female' if is_female else 'male')
             os.system(
-                f'java -jar renderer-all.jar --cache {cache} --out {complete_outdir} '
+                f'java -jar {RENDERER_PATH} --cache {cache} --out {complete_outdir} '
                 f'{"--playerfemale" if is_female else ""} '
                 f'--playerkit "{COMMA.join(playerkit)}" --playercolors "{COMMA.join(colorkit)}" '
                 f'--poseanim {render.pose_anim} --xan2d {render.xan2d} --yan2d {render.yan2d} --zan2d {render.zan2d}')
