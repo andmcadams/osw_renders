@@ -20,6 +20,11 @@ non_uploaded_files = set()
 failed_to_generate_files = set()
 COMMA = ','
 MAX_THREADS = 5
+try:
+    USER_AGENT = os.environ['USER_AGENT']
+except KeyError:
+    print('Set a user agent environment variable! (Or change the code)')
+    exit(-1)
 
 
 def validate_args(infile: str, cache: str, outdir: str, idfile: str) -> bool:
@@ -59,7 +64,7 @@ def download_image(file_name: str, outdir: str) -> Optional[str]:
 
     file_url = f'https://oldschool.runescape.wiki/images/{md5_val[:1]}/{md5_val[:2]}/{url_encoded_file_name}?{cache_buster}'
     download_path = Path(outdir).joinpath(file_name)
-    resp = requests.get(file_url, headers={'User-agent': 'andmcadams'})
+    resp = requests.get(file_url, headers={'User-agent': USER_AGENT})
     if resp.status_code == 200:
         out_file = open(download_path, 'wb+')
         out_file.write(resp.content)
