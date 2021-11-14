@@ -23,3 +23,8 @@ and run the following command:
 ```
 python3 master_script.py --infile [INFILE] --cache [CACHE] --only-gender male --render-type chathead --id-list ./ids.txt
 ```
+
+## Check wiki images documentation
+Don't use this script unless you know what you are doing! This does a binary diff on all equipped render images on the wiki
+with those generated from the sheet. Since this is a binary diff, image compression can fool this script into thinking
+an outdated version of the render is on the wiki. At some point, I will get around to actually making this a pixel diff.
