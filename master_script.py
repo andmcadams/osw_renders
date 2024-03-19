@@ -14,6 +14,7 @@ def main():
     parser.add_argument('--render-type', choices=['player', 'chathead'],
                         help='Only generate renders for the given type. Defaults to generating both.')
     parser.add_argument('--id-list', help='Only generate renders for the ids in this file (comma separated list)')
+    parser.add_argument('--set-list', help='Path to file for sets')
     args = parser.parse_args()
 
     infile = args.infile
@@ -22,6 +23,7 @@ def main():
     only_gender = args.only_gender
     only_render = args.render_type
     only_ids_file = args.id_list
+    set_list = args.set_list
 
     rendering_valid = create_renders.validate_args(infile, cache, outdir, only_ids_file)
     renaming_valid = rename_files.validate_args(infile, outdir, only_ids_file, check_renders_dir=False)
@@ -29,7 +31,7 @@ def main():
         exit(1)
 
     # Note that the renders_dir for renaming is the outdir for rendering
-    create_renders.start_up(infile, cache, outdir, only_gender, only_render, only_ids_file)
+    create_renders.start_up(infile, cache, outdir, only_gender, only_render, only_ids_file, set_list)
     rename_files.start_up(infile, outdir, None, only_gender, only_render, only_ids_file)
 
 

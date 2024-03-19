@@ -44,6 +44,7 @@ class EquippedRender:
         return self.male_playerkit
 
     def get_colorkit(self, is_female: bool) -> List[int]:
+        # Colorkit order: hair, shirt, pants, boots, skin
         if is_female:
             return self.female_colorkit
         return self.male_colorkit
@@ -134,3 +135,30 @@ class EquippedRender:
     @staticmethod
     def get_csv_headers() -> List[str]:
         return list(EquippedRender.__dict__['__dataclass_fields__'].keys())
+
+
+class ItemSet:
+
+    def __init__(self, items: List[EquippedRender]):
+        self.items = items
+
+    def get_complete_playerkit(self, is_female: bool) -> Optional[List[int]]:
+        # Note we should get each item's playerkit, then create a full one with zero'd out values
+        # Use the regular kit for first item
+        playerkit = self.items[0].get_complete_playerkit(is_female)
+
+        # Determine which playerkit we want for each item
+        for item in self.items:
+            # Hide all needed slots from zbm
+            for i, val in enumerate(item.zero_bitmap):
+                if val == 0:
+                    playerkit[i] = 0
+        for item in self.items:
+            # Replace equip slot with the item
+            playerkit[item.equip_slot] = item.item_id + 512
+
+
+        return playerkit
+
+    def get_colorkit(self, is_female: bool) -> List[int]:
+        return self.items[0].get_colorkit(is_female)

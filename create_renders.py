@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from tqdm import tqdm
 
-from equipped_render import EquippedRender
+from equipped_render import EquippedRender, ItemSet
 
 RENDERER_PATH = os.environ.get('RENDERER_PATH', './renderer-all.jar')
 COMMA = ','
@@ -57,7 +57,7 @@ def render_chathead_images(images_queue: Queue, cache: str, outdir: str, only_ge
         os.system(
             f'java -jar {RENDERER_PATH} --cache {cache_} --out {complete_outdir} '
             f'--playerkit "{COMMA.join(playerkit)}" --playercolors "{COMMA.join(colorkit)}" '
-            f'{"--playerfemale" if is_female else ""} --playerchathead --anim 589 --lowres --crophead'
+            f'{"--playerfemale" if is_female else ""} --playerchathead --anim 589 --lowres --crophead --yan2d 128'
         )
 
     while not images_queue.empty():
@@ -73,6 +73,7 @@ def render_equip_images(images_queue: Queue, cache: str, outdir: str, only_gende
     def render_image(render_: EquippedRender, is_female: bool, cache_: str, outdir_: str):
         playerkit = [str(k) for k in render_.get_complete_playerkit(is_female)]
         colorkit = [str(k) for k in render_.get_colorkit(is_female)]
+
         complete_outdir = Path(outdir_).joinpath('female' if is_female else 'male')
         os.system(
             f'java -jar {RENDERER_PATH} --cache {cache_} --out {complete_outdir} '
@@ -91,20 +92,43 @@ def render_equip_images(images_queue: Queue, cache: str, outdir: str, only_gende
 
 
 def run_jobs(infile: str, cache_arg: str, outdir_arg: str, only_gender: Optional[str], only_render: Optional[str],
-             only_ids: Optional[List[int]]):
+             only_ids: Optional[List[int]], set_list: Optional[str]):
     num_lines_data = sum(1 for _ in open(infile, 'r'))
     f = open(infile, 'r')
     dict_reader = csv.DictReader(f, dialect='excel')
 
     equip_jobs = Queue()
     chathead_jobs = Queue()
+    renders = {}
     for line in tqdm(dict_reader, total=num_lines_data):
         render = EquippedRender.from_dict(line)
+        renders[render.item_id] = render
         if only_ids is None or render.item_id in only_ids:
             if only_render is None or only_render == 'equip':
                 equip_jobs.put(render)
             if only_render is None or only_render == 'chathead':
                 chathead_jobs.put(render)
+
+    # Hacked in set support, pass in set list and it will only render sets
+    if set_list:
+        f2 = open(set_list)
+        d_r = csv.DictReader(f2, dialect='excel')
+        is_female = True
+        for line in d_r:
+            ids = line['item_ids'].split(',')
+            rotation = line['yan2d']
+            l = [renders[int(i)] for i in ids]
+            s = ItemSet(l)
+            playerkit = [str(k) for k in s.get_complete_playerkit(is_female)]
+            colorkit = [str(k) for k in s.get_colorkit(is_female)]
+            complete_outdir = Path(outdir_arg).joinpath('female' if is_female else 'male')
+            comm = (f'java -jar {RENDERER_PATH} --cache {cache_arg} --out {complete_outdir} '
+                    f'--playerkit "{COMMA.join(playerkit)}" --playercolors "{COMMA.join(colorkit)}" '
+                    f'--poseanim {808} --xan2d {96} --yan2d {rotation} --zan2d {0} '
+                    f'{"--playerfemale" if is_female else ""}')
+            os.system(comm)
+
+        exit(0)
 
     for i in range(MAX_THREADS):
         t = threading.Thread(target=render_equip_images, args=(equip_jobs, cache_arg, outdir_arg, only_gender))
@@ -126,20 +150,21 @@ def main():
     parser.add_argument('--render-type', choices=['player', 'chathead'],
                         help='Only generate renders for the given type. Defaults to generating both.')
     parser.add_argument('--id-list', help='Only generate renders for the ids in this file (comma separated list)')
+    parser.add_argument('--set-list', help='Only generate sets, might break things')
     args = parser.parse_args()
 
     if not validate_args(args.infile, args.cache, args.outdir, args.only_ids_file):
         exit(1)
 
-    start_up(args.infile, args.cache, args.outdir, args.only_gender, args.only_render, args.only_ids_file)
+    start_up(args.infile, args.cache, args.outdir, args.only_gender, args.only_render, args.only_ids_file, args.set_list)
 
 
 def start_up(infile: str, cache: str, outdir: str, only_gender: Optional[str], only_render: Optional[str],
-             only_ids_file: Optional[str]):
+             only_ids_file: Optional[str], set_list: Optional[str]):
     only_ids = None
     if only_ids_file is not None:
         only_ids = [int(item_id) for item_id in open(only_ids_file).read().split(',')]
-    run_jobs(infile, cache, outdir, only_gender, only_render, only_ids)
+    run_jobs(infile, cache, outdir, only_gender, only_render, only_ids, set_list)
 
 
 if __name__ == '__main__':
