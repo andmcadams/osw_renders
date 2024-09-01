@@ -79,7 +79,7 @@ class EquippedRender:
         playerkit_copy = copy.deepcopy(playerkit)
 
         # Replace equip slot with the item
-        playerkit_copy[self.equip_slot] = self.item_id + 512
+        playerkit_copy[self.equip_slot] = self.item_id + 2048
 
         # Hide all needed slots from zbm
         for i, val in enumerate(self.zero_bitmap):
@@ -155,7 +155,7 @@ class ItemSet:
                     playerkit[i] = 0
         for item in self.items:
             # Replace equip slot with the item
-            playerkit[item.equip_slot] = item.item_id + 512
+            playerkit[item.equip_slot] = item.item_id + 2048
 
 
         return playerkit
